@@ -26,22 +26,10 @@ def extrair_precos_maciamente(tickers: list, data_inicio: str = '2016-01-01') ->
         # Download massivo com multithreading
         dados_b3_full = yf.download(tickers, start=data_inicio, threads=True, ignore_tz=True)
         
-        # Transformar a matriz tridimensional num DataFrame plano tradicional
+        # Mantém as colunas originais do YFinance (Open, High, Low, Close, Adj Close, Volume)
+        # Apensa o ticker e reseta o índice, deixando o dataset completamente 'sujo' como importado
         df_b3_bruto = dados_b3_full.stack(level=1).reset_index()
-
-        # Renomear colunas para o padrão do projeto
-        df_b3_bruto.rename(columns={
-            'level_1': 'Ticker', 
-            'Date': 'Data_Merge',
-            'Open': 'Preco_Abertura',
-            'High': 'Preco_Maximo',
-            'Low': 'Preco_Minimo',
-            'Close': 'Preco_Fechamento',
-            'Volume': 'Volume_Negociado'
-        }, inplace=True)
-
-        # Formatação de data extra
-        df_b3_bruto['Data_Formatada'] = df_b3_bruto['Data_Merge'].dt.strftime('%d/%m/%Y')
+        df_b3_bruto.rename(columns={'level_1': 'Ticker'}, inplace=True)
         
         # Mantendo TODAS as colunas originadas do YFinance (Dataset sujo/completo) para limpeza posterior
         print(f"✅ MEGA DATASET DE PREÇOS CRIADO! Foram guardadas {len(df_b3_bruto)} linhas históricas.")
