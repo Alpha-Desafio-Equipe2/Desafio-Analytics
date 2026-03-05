@@ -11,8 +11,7 @@ TICKERS_B3 = [
     "PETR4.SA", "VALE3.SA", "ITUB4.SA", "BBDC4.SA", "BBAS3.SA",
     "WEGE3.SA", "ABEV3.SA", "RENT3.SA", "ELET3.SA", "B3SA3.SA"
 ]
-PERIODO_EXTRA_LONGO = "10y"
-PASTA_DESTINO = Path("../../data/raw")
+PASTA_DESTINO = Path(__file__).resolve().parent.parent.parent.parent / "data" / "raw"
 
 # ==========================================
 # FUNÇÕES DE EXTRAÇÃO CORAÇÃO DO MARKET DATA
