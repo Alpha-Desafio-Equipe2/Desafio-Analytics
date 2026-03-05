@@ -44,7 +44,7 @@ def extrair_precos_maciamente(tickers: list, data_inicio: str) -> pd.DataFrame:
     print("   ⏳ O download paralelo começou. Isto pode demorar alguns minutos...")
     
     try:
-        dados_b3_full = yf.download(tickers, start=data_inicio, threads=True, ignore_tz=True, show_errors=False)
+        dados_b3_full = yf.download(tickers, start=data_inicio, threads=True, ignore_tz=True)
         
         # O stack junta as ações em linhas, mantendo Open, High, Low, Close, Adj Close e Volume
         # Nota: future_stack=True removido por incompatibilidade com Pandas < 2.1 utilizado no ambiente
