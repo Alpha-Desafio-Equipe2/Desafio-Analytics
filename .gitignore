@@ -1,12 +1,6 @@
-*.csv
 *.sqlite
 .venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 data/raw/*
-!data/raw/.gitkeep
-!data/raw/01_yfinance_precos_raw.csv
-!data/raw/02_yfinance_eventos_raw.csv
-!data/raw/03_yfinance_info_raw.csv
-!data/raw/04_yfinance_balancos_raw.csv
