@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import os
 import time
+from datetime import datetime, timedelta
 
 # ==========================================
 # CONFIGURAÇÕES DO ESTUDO DA B3
@@ -42,14 +43,7 @@ def extrair_precos_maciamente(tickers: list, data_inicio: str = '2016-01-01') ->
         # Formatação de data extra
         df_b3_bruto['Data_Formatada'] = df_b3_bruto['Data_Merge'].dt.strftime('%d/%m/%Y')
         
-        # Opcional: manter o Adj Close se for relevante para séries históricas de Machine Learning
-        # mas respeitando o schema base solicitado
-        colunas_finais = ['Data_Formatada', 'Data_Merge', 'Ticker', 'Preco_Abertura', 'Preco_Maximo', 'Preco_Minimo', 'Preco_Fechamento', 'Volume_Negociado']
-        
-        # Garante que filtra apenas colunas que de fato existem
-        colunas_finais = [c for c in colunas_finais if c in df_b3_bruto.columns]
-        df_b3_bruto = df_b3_bruto[colunas_finais]
-
+        # Mantendo TODAS as colunas originadas do YFinance (Dataset sujo/completo) para limpeza posterior
         print(f"✅ MEGA DATASET DE PREÇOS CRIADO! Foram guardadas {len(df_b3_bruto)} linhas históricas.")
         return df_b3_bruto
         
@@ -93,8 +87,10 @@ def run_market_data_pipeline():
     # 1. Garantir que a pasta raw existe
     PASTA_DESTINO.mkdir(parents=True, exist_ok=True)
     
-    # 2. Coletar Preços
-    df_precos = extrair_precos_maciamente(TICKERS_B3, data_inicio='2014-01-01')
+    # 2. Coletar Preços (Exatos 10 anos atrás)
+    hoje = datetime.today()
+    data_10_anos = (hoje - timedelta(days=365*10)).strftime('%Y-%m-%d')
+    df_precos = extrair_precos_maciamente(TICKERS_B3, data_inicio=data_10_anos)
     
     if not df_precos.empty:
         caminho_precos = PASTA_DESTINO / "precos_b3_mestre.csv"
