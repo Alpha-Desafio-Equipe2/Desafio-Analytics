@@ -14,8 +14,11 @@ def run_processing_pipeline():
     """
     print("⚙️ INICIANDO PIPELINE DE PROCESSAMENTO (ISSUE #5) ⚙️")
     
-    caminho_entrada = 'data/raw/01_yfinance_precos_raw.csv'
-    pasta_saida = 'data/processed'
+    # Base do projeto (Desafio-Analytics)
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+    
+    caminho_entrada = os.path.join(base_dir, 'data/raw/01_yfinance_precos_raw.csv')
+    pasta_saida = os.path.join(base_dir, 'data/processed')
     caminho_saida = os.path.join(pasta_saida, '01_market_data_processed.csv')
     
     os.makedirs(pasta_saida, exist_ok=True)
