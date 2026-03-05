@@ -2,21 +2,24 @@ import pandas as pd
 import os
 import sys
 
-# Garante que o diretório src está no path para importar utils
+# Garante que o diretório src está no path para importar utils (Se rodar via terminal local)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from b3_analytics.utils.finance_utils import calcular_retornos, calcular_volatilidade, calcular_medias_moveis
+from b3_analytics.utils.finance_utils import (
+    calcular_retornos, 
+    calcular_volatilidade, 
+    calcular_medias_moveis,
+    calcular_momentum,
+    calcular_volume_indicadores
+)
 
 def run_processing_pipeline():
     """
-    Lê os dados brutos (Raw), aplica os cálculos matemáticos financeiros
-    e salva os DataFrames analíticos prontos para a IA e Dashboard.
+    Aplica engenharia de features institucionais baseada nas 10 Regras de Ouro Quants.
     """
-    print("⚙️ INICIANDO PIPELINE DE PROCESSAMENTO (ISSUE #5) ⚙️")
+    print("⚙️ INICIANDO ENGENHARIA DE DADOS QUANTITATIVA (ISSUE #5) ⚙️")
     
-    # Base do projeto (Desafio-Analytics)
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
-    
     caminho_entrada = os.path.join(base_dir, 'data/raw/01_yfinance_precos_raw.csv')
     pasta_saida = os.path.join(base_dir, 'data/processed')
     caminho_saida = os.path.join(pasta_saida, '01_market_data_processed.csv')
@@ -27,38 +30,46 @@ def run_processing_pipeline():
         print(f"❌ Erro: Arquivo de entrada não encontrado em {caminho_entrada}.")
         return
 
-    print("1. Lendo os dados brutos (suportando separador ';' e decimal ',')...")
-    # Colunas no CSV: Date;Ticker;Adj Close;Close;High;Low;Open;Volume
+    print("1. A ler e higienizar dados brutos...")
     df = pd.read_csv(caminho_entrada, sep=';', decimal=',')
+    df.columns = [str(c).lower().strip() for c in df.columns]
     
-    # Padronização de nomes de colunas (lowercase)
-    df.columns = [c.lower() for c in df.columns]
-    
-    # Garantir que a data é datetime para ordenação cronológica
+    # Padronização e Limpeza: Tipagem e Formato de Datas
     df['date'] = pd.to_datetime(df['date'])
     
-    # Ordenação obrigatória: A matemática não funciona se os dias estiverem embaralhados
+    # Eliminar Duplicatas de reentrada da B3
+    df = df.drop_duplicates(subset=['ticker', 'date'], keep='last')
+    
     df = df.sort_values(by=['ticker', 'date']).reset_index(drop=True)
     
-    print("2. Calculando Retorno Diário e Acumulado...")
+    print("2. A tratar Missing Values (Forward Fill)...")
+    # Forward Fill (O último preço negociado é a verdade atual)
+    colunas_preco_vol = ['close', 'high', 'low', 'open', 'volume']
+    colunas_existentes = [c for c in colunas_preco_vol if c in df.columns]
+    df[colunas_existentes] = df.groupby('ticker')[colunas_existentes].ffill()
+    
+    print("3. A gerar Features Preditivas (Retornos e Volatilidade)...")
     df = calcular_retornos(df, coluna_preco='close')
+    df = calcular_volatilidade(df, coluna_retorno='log_return')
     
-    print("3. Calculando Volatilidade Anualizada (21 dias)...")
-    df = calcular_volatilidade(df, coluna_retorno='retorno_diario', janela=21)
-    
-    print("4. Calculando Médias Móveis...")
+    print("4. A calcular Indicadores de Tendência e Momentum...")
     df = calcular_medias_moveis(df, coluna_preco='close')
+    df = calcular_momentum(df, coluna_preco='close')
     
-    # Preenchimento de nulos após o pct_change
+    if 'volume' in df.columns:
+        print("5. A mapear Fluxo Institucional (OBV)...")
+        df = calcular_volume_indicadores(df, coluna_preco='close', coluna_vol='volume')
+    
+    # Preenchimento de arranques iniciais nulos
     df['retorno_diario'] = df['retorno_diario'].fillna(0)
+    df['log_return'] = df['log_return'].fillna(0)
     
-    print("5. Salvando DataFrame Analítico...")
+    print("6. A salvar Super DataFrame Master...")
     df.to_csv(caminho_saida, sep=';', decimal=',', index=False, encoding='utf-8-sig')
     
-    print("\n✅ PROCESSAMENTO CONCLUÍDO COM SUCESSO!")
-    print(f"   -> Arquivo salvo em: {caminho_saida}")
-    print(f"   -> Linhas processadas: {len(df)}")
-    print(f"   -> Colunas disponíveis: {list(df.columns)}")
-
+    print("\n✅ PROCESSAMENTO QUANTITATIVO CONCLUÍDO!")
+    print(f"   -> Arquivo pronto para Machine Learning: {caminho_saida}")
+    print(f"   -> Variáveis criadas: Log Return, Volatilidade (1M, 3M, 1A), OBV, Spreads, Momentum.")
+    
 if __name__ == "__main__":
     run_processing_pipeline()
