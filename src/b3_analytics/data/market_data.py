@@ -84,6 +84,8 @@ def extrair_eventos_corporativos(tickers: list) -> pd.DataFrame:
             pass # Ignora silenciosamente se não houver dados
             
     if not df_eventos.empty and 'Date' in df_eventos.columns:
+        # Força conversão para datetime caso a concatenação tenha convertido os tipos para string genérica
+        df_eventos['Date'] = pd.to_datetime(df_eventos['Date'], utc=True)
         df_eventos['Date'] = df_eventos['Date'].dt.tz_localize(None)
         
     print(f"   ✅ Eventos extraídos! {len(df_eventos)} registos de dividendos/splits.")
