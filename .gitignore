@@ -3,3 +3,6 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+data/raw/*
+data/processed/01_market_data_processed.csv
+data/processed/01_market_data_processed.parquet
