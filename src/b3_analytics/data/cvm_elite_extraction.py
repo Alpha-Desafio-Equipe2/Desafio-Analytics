@@ -225,7 +225,7 @@ if __name__ == "__main__":
     df_focado = extrair_e_refinar_cvm_historico(2015, 2026)
     
     if df_focado is not None:
-        PASTA_DATASETS = 'data/raw'
+        PASTA_DATASETS = '../../../data/raw'
         os.makedirs(PASTA_DATASETS, exist_ok=True)
         
         caminho_cvm = f"{PASTA_DATASETS}/05_CVM_Historico_Focado.csv"
