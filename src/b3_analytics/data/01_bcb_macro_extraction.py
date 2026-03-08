@@ -15,7 +15,7 @@ nas etapas de análise e modelagem do projeto.
 from datetime import date
 from bcb import sgs
 import pandas as pd
-from pathlib import Path
+from b3_analytics.utils.paths import RAW_DIR
 
 def obter_periodo_analise(anos: int = 10) -> tuple[date, date]:
     """
@@ -78,25 +78,17 @@ def salvar_dados_macro(df: pd.DataFrame) -> None:
         DataFrame contendo os indicadores macroeconômicos.
     """
 
-    # raiz do projeto
-    BASE_DIR = Path(__file__).resolve().parents[3]
-
-    # pasta data/raw
-    DATA_RAW = BASE_DIR / "data" / "raw"
-
-    # cria pasta se não existir
-    DATA_RAW.mkdir(parents=True, exist_ok=True)
-
-    # caminho do arquivo
-    arquivo = DATA_RAW / "01_bcb_indicadores_economicos.csv"
-
+    # caminho do arquivo: salvo na pasta paths.py(RAW_DIR)
+    arquivo = RAW_DIR / "01_bcb_indicadores_economicos.csv"
 
     df.to_csv(arquivo, sep=';', decimal=',', encoding='utf-8-sig')
-    print(f"✅ Arquivo salvo: {arquivo}")
     df.describe()
 
 def main():
     """Executa o pipeline de coleta de dados macroeconômicos."""
+
+try:
+
 
     data_inicio, data_fim = obter_periodo_analise()
 
@@ -109,8 +101,15 @@ def main():
 
     print("\nInformações do dataset:")
     print(dados_macro.info())
-
+    print(dados_macro.describe())
+    
     salvar_dados_macro(dados_macro)
+    print(f"✅ Arquivo salvo: {RAW_DIR / '01_bcb_indicadores_economicos.csv'}")
+
+except Exception as e:
+    print(f"❌ Erro ao coletar dados macroeconômicos")
+    print(f"Detalhes do erro: {e}")
+    raise
 
 
 if __name__ == "__main__":
