@@ -455,22 +455,22 @@ def run_market_data_pipeline():
     # Nível 1: Preços OHLCV + Adj Close
     df_precos = extrair_precos_maciamente(tickers_b3, data_inicio=data_10_anos)
     if not df_precos.empty:
-        df_precos.to_csv(PASTA_DESTINO / "01_yfinance_precos_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
+        df_precos.to_csv(PASTA_DESTINO / "02_yfinance_precos_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
 
     # Nível 2: Dividendos e Splits
     df_eventos = extrair_eventos_corporativos(tickers_b3)
     if not df_eventos.empty:
-        df_eventos.to_csv(PASTA_DESTINO / "02_yfinance_eventos_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
+        df_eventos.to_csv(PASTA_DESTINO / "03_yfinance_eventos_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
 
     # Nível 3: Metadados (+100 colunas)
     df_info = extrair_info_avancada(tickers_b3)
     if not df_info.empty:
-        df_info.to_csv(PASTA_DESTINO / "03_yfinance_info_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
+        df_info.to_csv(PASTA_DESTINO / "04_yfinance_info_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
         
     # Nível 4: DRE Padronizada
     df_balancos = extrair_balancos_anuais(tickers_b3)
     if not df_balancos.empty:
-        df_balancos.to_csv(PASTA_DESTINO / "04_yfinance_balancos_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
+        df_balancos.to_csv(PASTA_DESTINO / "05_yfinance_balancos_raw.csv", sep=';', decimal=',', index=False, encoding='utf-8-sig')
 
     print(f"\n🏁 PIPELINE FINALIZADO COM SUCESSO DE NÍVEL DATA LAKE.")
     print(f"📁 Os 4 Mega-Datasets com todo o histórico e fundamentos da B3 estão em:\n{PASTA_DESTINO}")
