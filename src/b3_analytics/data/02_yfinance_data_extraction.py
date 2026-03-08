@@ -413,13 +413,13 @@ def run_market_data_pipeline():
 
     Files Generated
     ---------------
-    - 01_yfinance_precos_raw.csv
+    - 02_yfinance_precos_raw.csv
         Histórico de preços das ações (OHLCV).
-    - 02_yfinance_eventos_raw.csv
+    - 03_yfinance_eventos_raw.csv
         Eventos corporativos como dividendos e desdobramentos.
-    - 03_yfinance_info_raw.csv
+    - 04_yfinance_info_raw.csv
         Metadados e indicadores fundamentalistas das empresas.
-    - 04_yfinance_balancos_raw.csv
+    - 05_yfinance_balancos_raw.csv
         Demonstrações financeiras anuais padronizadas.
 
     Notes
