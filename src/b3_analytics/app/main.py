@@ -195,10 +195,11 @@ max_date = df_full['date'].max().date()
 
 # Inicializa o estado da sessão com o período padrão (1 ano)
 if 'range_dates' not in st.session_state:
-    default_start = max_date - pd.DateOffset(years=1)
-    if default_start.date() < min_date:
-        default_start = min_date
-    st.session_state.range_dates = [default_start.date(), max_date]
+    default_start = max_date - pd.DateOffset(years=1)  # Timestamp
+    default_start_date = default_start.date()
+    if default_start_date < min_date:
+        default_start_date = min_date
+    st.session_state.range_dates = [default_start_date, max_date]
 
 # --- 6. SIDEBAR – CONTROLES ---
 with st.sidebar:
@@ -231,31 +232,31 @@ with st.sidebar:
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     with col_a:
         if st.button("10a"):
-            start = max_date - pd.DateOffset(years=10)
-            if start.date() < min_date:
+            start = (max_date - pd.DateOffset(years=10)).date()
+            if start < min_date:
                 start = min_date
-            st.session_state.range_dates = [start.date(), max_date]
+            st.session_state.range_dates = [start, max_date]
             st.rerun()
     with col_b:
         if st.button("5a"):
-            start = max_date - pd.DateOffset(years=5)
-            if start.date() < min_date:
+            start = (max_date - pd.DateOffset(years=5)).date()
+            if start < min_date:
                 start = min_date
-            st.session_state.range_dates = [start.date(), max_date]
+            st.session_state.range_dates = [start, max_date]
             st.rerun()
     with col_c:
         if st.button("1a"):
-            start = max_date - pd.DateOffset(years=1)
-            if start.date() < min_date:
+            start = (max_date - pd.DateOffset(years=1)).date()
+            if start < min_date:
                 start = min_date
-            st.session_state.range_dates = [start.date(), max_date]
+            st.session_state.range_dates = [start, max_date]
             st.rerun()
     with col_d:
         if st.button("6m"):
-            start = max_date - pd.DateOffset(months=6)
-            if start.date() < min_date:
+            start = (max_date - pd.DateOffset(months=6)).date()
+            if start < min_date:
                 start = min_date
-            st.session_state.range_dates = [start.date(), max_date]
+            st.session_state.range_dates = [start, max_date]
             st.rerun()
     with col_e:
         if st.button("Tudo"):
