@@ -7,6 +7,7 @@ from plotly.subplots import make_subplots
 import os
 import time
 from scipy import stats
+import yfinance as yf
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -305,16 +306,33 @@ def calc_risco_retorno(df, tickers, min_obs=60):
     return pd.DataFrame(resultados)
 
 @st.cache_data
-def calc_betas(df, tickers):
+def calc_betas_ibov(df, tickers):
+    """Calcula beta em relação ao Ibovespa usando yfinance."""
+    # Baixa dados do Ibovespa
+    ibov_raw = yf.download("^BVSP", start=df['date'].min(), end=df['date'].max(), progress=False)
+    if ibov_raw.empty:
+        return pd.DataFrame(columns=['ticker', 'beta'])
+    ibov = ibov_raw['Close'].squeeze()
+    ibov_ret = ibov.pct_change().dropna()
+    ibov_ret.name = "ibov"
+
+    # Pivot dos retornos dos ativos
     retornos = df.pivot(index='date', columns='ticker', values='close').pct_change().dropna(how='all')
-    retornos['mercado'] = retornos.mean(axis=1)
-    retornos = retornos.dropna()
+    # Alinha datas
+    common_dates = retornos.index.intersection(ibov_ret.index)
+    retornos = retornos.loc[common_dates]
+    ibov_ret = ibov_ret.loc[common_dates]
+
     betas = {}
     for ticker in tickers:
         if ticker not in retornos.columns:
             continue
-        cov = np.cov(retornos[ticker], retornos['mercado'])[0, 1]
-        var = np.var(retornos['mercado'])
+        # Remove linhas com NaN em ambos
+        df_combined = pd.concat([retornos[ticker], ibov_ret], axis=1).dropna()
+        if len(df_combined) < 30:
+            continue
+        cov = np.cov(df_combined.iloc[:, 0], df_combined.iloc[:, 1])[0, 1]
+        var = np.var(df_combined.iloc[:, 1])
         betas[ticker] = cov / var
     return pd.DataFrame(list(betas.items()), columns=['ticker', 'beta']).sort_values('beta')
 
@@ -328,7 +346,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 # ==========================================================================
-# ABA 1 – ANÁLISE ESTRUTURAL
+# ABA 1 – ANÁLISE ESTRUTURAL (ENRIQUECIDA)
 # ==========================================================================
 with tab1:
     st.title(f"{main_ticker} | Visão Técnica")
@@ -336,7 +354,8 @@ with tab1:
     st.markdown("""
     <div class='explanation'>
     <b>NOTA TÉCNICA:</b> Ação de preço estruturada com médias móveis (SMA 21, 50, 200).
-    Volume financeiro com destaque nas barras. Índice de Força Relativa (RSI) e Drawdown acumulado disponíveis nos sub-gráficos para análise de exaustão de tendência.
+    Volume financeiro com destaque nas barras (vermelho = volume > 2σ da média). 
+    Índice de Força Relativa (RSI) e Drawdown acumulado disponíveis nos sub‑gráficos para análise de exaustão de tendência.
     </div>
     """, unsafe_allow_html=True)
 
@@ -364,17 +383,30 @@ with tab1:
         estado = "Alta" if tend == 1 else ("Baixa" if tend == 0 else "Neutra")
         col4.metric("TENDÊNCIA (50/200)", estado)
 
-    # Gráfico principal limpo
-    fig = make_subplots(rows=4, cols=1, shared_xaxes=True,
-                        vertical_spacing=0.03,
-                        row_heights=[0.4, 0.2, 0.2, 0.2])
+    # --- Gráfico principal com indicadores avançados ---
+    # Pré‑cálculo de volume spikes
+    df_main = df_main.sort_values('date')
+    df_main['vol_ma20'] = df_main['volume'].rolling(20, min_periods=5).mean()
+    df_main['vol_std20'] = df_main['volume'].rolling(20, min_periods=5).std()
+    df_main['vol_spike'] = (df_main['volume'] > df_main['vol_ma20'] + 2 * df_main['vol_std20']).fillna(False)
+    colors_volume = [COLOR_DOWN if spike else '#78909C' for spike in df_main['vol_spike']]
 
+    fig = make_subplots(
+        rows=4, cols=1, shared_xaxes=True,
+        vertical_spacing=0.03,
+        row_heights=[0.4, 0.2, 0.2, 0.2],
+        subplot_titles=("Preço e Médias", "Volume (vermelho = spike ≥ 2σ)", "RSI (14)", "Drawdown %")
+    )
+
+    # Candlestick
     fig.add_trace(go.Candlestick(
         x=df_main['date'], open=df_main['open'], high=df_main['high'],
         low=df_main['low'], close=df_main['close'], name='Price',
-        increasing_line_color=COLOR_UP, decreasing_line_color=COLOR_DOWN
+        increasing_line_color=COLOR_UP, decreasing_line_color=COLOR_DOWN,
+        showlegend=False
     ), row=1, col=1)
 
+    # Médias móveis
     if 'sma_21' in df_main.columns:
         fig.add_trace(go.Scatter(x=df_main['date'], y=df_main['sma_21'],
                                   line=dict(color='#FF9800', width=1.5), name='SMA 21'), row=1, col=1)
@@ -385,16 +417,22 @@ with tab1:
         fig.add_trace(go.Scatter(x=df_main['date'], y=df_main['sma_200'],
                                   line=dict(color='#9598A1', width=1.5, dash='dash'), name='SMA 200'), row=1, col=1)
 
-    colors = [COLOR_UP if row['close'] >= row['open'] else COLOR_DOWN for _, row in df_main.iterrows()]
-    fig.add_trace(go.Bar(x=df_main['date'], y=df_main['volume'], marker_color=colors, opacity=0.7, name='Volume'), row=2, col=1)
+    # Volume com spikes coloridos
+    fig.add_trace(go.Bar(x=df_main['date'], y=df_main['volume'],
+                         marker_color=colors_volume, opacity=0.7, name='Volume'), row=2, col=1)
 
+    # RSI com zonas preenchidas
     if 'rsi' in df_main.columns:
         fig.add_trace(go.Scatter(x=df_main['date'], y=df_main['rsi'],
                                   line=dict(color='#FF9800', width=1.5), name='RSI'), row=3, col=1)
+        # Zonas de sobrecompra/sobrevenda
+        fig.add_hrect(y0=70, y1=100, line_width=0, fillcolor="rgba(255,0,0,0.07)", row=3, col=1)
+        fig.add_hrect(y0=0,  y1=30,  line_width=0, fillcolor="rgba(0,200,0,0.07)", row=3, col=1)
         fig.add_hline(y=70, line_dash="dash", line_color="#9598A1", row=3, col=1)
         fig.add_hline(y=30, line_dash="dash", line_color="#9598A1", row=3, col=1)
         fig.update_yaxes(title_text="RSI", range=[0, 100], row=3, col=1)
 
+    # Drawdown
     if 'drawdown' in df_main.columns:
         fig.add_trace(go.Scatter(
             x=df_main['date'],
@@ -411,17 +449,16 @@ with tab1:
         template='plotly_dark',
         paper_bgcolor=COLOR_BG,
         plot_bgcolor=COLOR_BG,
-        height=850,
+        height=950,
         xaxis_rangeslider_visible=False,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=0, r=0, t=30, b=0)
+        margin=dict(l=0, r=0, t=40, b=0)
     )
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
-
     st.plotly_chart(fig, use_container_width=True)
 
-    # MACD e Bollinger
+    # --- MACD e Bollinger (já existentes) ---
     st.markdown("<br>", unsafe_allow_html=True)
     col_a, col_b = st.columns(2)
     with col_a:
@@ -460,28 +497,41 @@ with tab1:
             fig_bb.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
             st.plotly_chart(fig_bb, use_container_width=True)
 
-    # VWAP
+    # --- VWAP com bandas de desvio ---
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<div style='color: #787B86; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;'>VWAP (VOLUME WEIGHTED AVERAGE PRICE)</div>", unsafe_allow_html=True)
-    def calculate_vwap(df, ticker):
+    st.markdown("<div style='color: #787B86; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;'>VWAP COM BANDA DE ±1σ</div>", unsafe_allow_html=True)
+
+    def calculate_vwap_bands(df, ticker):
         df_t = df[df['ticker'] == ticker].sort_values('date').copy()
         df_t['typical_price'] = (df_t['high'] + df_t['low'] + df_t['close']) / 3
         df_t['pv'] = df_t['typical_price'] * df_t['volume']
         df_t['cum_pv'] = df_t['pv'].cumsum()
         df_t['cum_vol'] = df_t['volume'].cumsum()
         df_t['vwap'] = df_t['cum_pv'] / df_t['cum_vol']
+        df_t['vwap_std'] = (df_t['close'] - df_t['vwap']).expanding().std()
         return df_t
-    df_vwap = calculate_vwap(df, main_ticker)
-    fig_vwap = go.Figure()
-    fig_vwap.add_trace(go.Scatter(x=df_vwap['date'], y=df_vwap['close'], mode='lines', name='Preço', line=dict(color='#D1D4DC')))
-    fig_vwap.add_trace(go.Scatter(x=df_vwap['date'], y=df_vwap['vwap'], mode='lines', name='VWAP', line=dict(dash='dash', color=COLOR_PRIMARY)))
-    fig_vwap.update_layout(template='plotly_dark', paper_bgcolor=COLOR_BG, plot_bgcolor=COLOR_BG, height=400, margin=dict(l=0, r=0, t=10, b=0))
-    fig_vwap.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
-    fig_vwap.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
-    st.plotly_chart(fig_vwap, use_container_width=True)
+
+    df_vwap = calculate_vwap_bands(df, main_ticker)
+    if not df_vwap.empty:
+        fig_vwap = go.Figure()
+        # Banda ±1σ
+        fig_vwap.add_trace(go.Scatter(
+            x=pd.concat([df_vwap['date'], df_vwap['date'].iloc[::-1]]),
+            y=pd.concat([df_vwap['vwap'] + df_vwap['vwap_std'], (df_vwap['vwap'] - df_vwap['vwap_std']).iloc[::-1]]),
+            fill='toself', fillcolor='rgba(255,165,0,0.12)',
+            line=dict(color='rgba(255,165,0,0)'), name='±1σ VWAP', hoverinfo='skip'
+        ))
+        fig_vwap.add_trace(go.Scatter(x=df_vwap['date'], y=df_vwap['close'], mode='lines', name='Preço', line=dict(color='#D1D4DC')))
+        fig_vwap.add_trace(go.Scatter(x=df_vwap['date'], y=df_vwap['vwap'], mode='lines', name='VWAP', line=dict(dash='dash', color=COLOR_PRIMARY)))
+        fig_vwap.update_layout(template='plotly_dark', paper_bgcolor=COLOR_BG, plot_bgcolor=COLOR_BG, height=400, margin=dict(l=0, r=0, t=10, b=0))
+        fig_vwap.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
+        fig_vwap.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
+        st.plotly_chart(fig_vwap, use_container_width=True)
+    else:
+        st.info("Dados insuficientes para VWAP.")
 
 # ==========================================================================
-# ABA 2 – DESEMPENHO RELATIVO
+# ABA 2 – DESEMPENHO RELATIVO (mantido, apenas pequenos ajustes)
 # ==========================================================================
 with tab2:
     st.title("Desempenho Relativo & Benchmark")
@@ -559,24 +609,69 @@ with tab2:
         st.plotly_chart(fig_macro, use_container_width=True)
 
 # ==========================================================================
-# ABA 3 – MATRIZ DE RISCO
+# ABA 3 – MATRIZ DE RISCO (ENRIQUECIDA)
 # ==========================================================================
 with tab3:
     st.title("Matriz de Risco e Distribuição")
 
+    # Risco vs Retorno aprimorado com quadrantes e tendência
     df_risco = calc_risco_retorno(df, selected_tickers)
     if not df_risco.empty:
+        # Classificação em quadrantes
+        med_ret = df_risco['retorno_anual'].median()
+        med_vol = df_risco['volatilidade_anual'].median()
+
+        def classificar(row):
+            if row['retorno_anual'] >= med_ret and row['volatilidade_anual'] <= med_vol:
+                return '⭐ Ideal'
+            elif row['retorno_anual'] >= med_ret:
+                return '⚡ Agressivo'
+            elif row['volatilidade_anual'] <= med_vol:
+                return '🛡️ Defensivo'
+            else:
+                return '❌ Evitar'
+        df_risco['classe'] = df_risco.apply(classificar, axis=1)
+
         fig_risco = px.scatter(
             df_risco, x='volatilidade_anual', y='retorno_anual', text='ticker',
             size=df_risco['sharpe_ratio'].abs() + 0.1, color='sharpe_ratio',
-            color_continuous_scale='viridis',
-            labels={'volatilidade_anual': 'Risco (Volatilidade Anual %)', 'retorno_anual': 'Retorno Anual %'}
+            color_continuous_scale='RdYlGn',
+            hover_data={'classe': True, 'sharpe_ratio': ':.2f'},
+            labels={'volatilidade_anual': 'Risco (Vol %)', 'retorno_anual': 'Retorno Anual %'}
         )
         fig_risco.update_traces(textposition='top center')
-        fig_risco.update_layout(template='plotly_dark', paper_bgcolor=COLOR_BG, plot_bgcolor=COLOR_BG, height=600)
+
+        # Linhas de mediana
+        fig_risco.add_hline(y=med_ret, line_dash='dot', line_color='gray',
+                            annotation_text=f'Mediana ret: {med_ret:.1f}%', annotation_position='right')
+        fig_risco.add_vline(x=med_vol, line_dash='dot', line_color='gray',
+                            annotation_text=f'Mediana vol: {med_vol:.1f}%', annotation_position='top')
+
+        # Linha de tendência linear
+        x = df_risco['volatilidade_anual'].values
+        y = df_risco['retorno_anual'].values
+        slope, intercept, r_value, *_ = stats.linregress(x, y)
+        x_trend = np.linspace(x.min(), x.max(), 100)
+        y_trend = slope * x_trend + intercept
+        fig_risco.add_trace(go.Scatter(
+            x=x_trend, y=y_trend, mode='lines', name=f'Tendência (R²={r_value**2:.2f})',
+            line=dict(dash='dash', color='white', width=1.5)
+        ))
+
+        fig_risco.update_layout(
+            template='plotly_dark', paper_bgcolor=COLOR_BG, plot_bgcolor=COLOR_BG,
+            height=650, coloraxis_colorbar=dict(title='Sharpe')
+        )
         fig_risco.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
         fig_risco.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
         st.plotly_chart(fig_risco, use_container_width=True)
+
+        st.write("Classificação dos ativos:")
+        st.dataframe(df_risco[['ticker', 'retorno_anual', 'volatilidade_anual', 'sharpe_ratio', 'classe']]
+                     .style.format({'retorno_anual': '{:.1f}%', 'volatilidade_anual': '{:.1f}%', 'sharpe_ratio': '{:.2f}'}),
+                     use_container_width=True, hide_index=True)
+    else:
+        st.warning("Não há dados suficientes para calcular risco/retorno.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("Heatmap de Correlação")
@@ -589,14 +684,18 @@ with tab3:
         st.plotly_chart(fig_corr, use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("Beta em relação ao Mercado (Proxy: Média)")
-    df_beta = calc_betas(df, selected_tickers)
+    st.subheader("Beta vs. Ibovespa")
+    with st.spinner("Calculando betas com dados do Ibovespa..."):
+        df_beta = calc_betas_ibov(df, selected_tickers)
     if not df_beta.empty:
         fig_beta = px.bar(df_beta, x='ticker', y='beta', color='beta', color_continuous_scale='RdBu_r')
+        fig_beta.add_hline(y=1, line_dash='dash', line_color='gray', annotation_text='β = 1')
         fig_beta.update_layout(template='plotly_dark', paper_bgcolor=COLOR_BG, plot_bgcolor=COLOR_BG, height=450)
         fig_beta.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
         fig_beta.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2A2E39')
         st.plotly_chart(fig_beta, use_container_width=True)
+    else:
+        st.info("Não foi possível calcular betas (poucos dados em comum com Ibovespa).")
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("Fronteira Eficiente (Simulação de Portfólio)")
@@ -624,7 +723,7 @@ with tab3:
         st.plotly_chart(fig_ef, use_container_width=True)
 
 # ==========================================================================
-# ABA 4 – FUNDAMENTOS
+# ABA 4 – FUNDAMENTOS (mantido)
 # ==========================================================================
 with tab4:
     st.title("Dados Estruturais (CVM)")
@@ -654,7 +753,7 @@ with tab4:
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
 # ==========================================================================
-# ABA 5 – SCREENER DE MERCADO
+# ABA 5 – SCREENER DE MERCADO (mantido)
 # ==========================================================================
 with tab5:
     st.title("Screener Quantitativo")
