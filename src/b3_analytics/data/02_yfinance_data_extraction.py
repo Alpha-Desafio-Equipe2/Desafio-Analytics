@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import warnings
 import logging
-from b3_analytics.utils.paths import RAW_DIR as PASTA_DESTINO
+from b3_analytics.utils.paths import RAW_DIR as PASTA_DESTINO, LOG_DIR
 
 # =====================================================================
 # CONFIGURAÇÕES E BLINDAGEM DE ERROS
@@ -135,6 +135,27 @@ def extrair_precos_maciamente(tickers: list, data_inicio: str) -> pd.DataFrame:
         # Nota: future_stack=True removido por incompatibilidade com Pandas < 2.1 utilizado no ambiente
         df_b3_bruto = dados_b3_full.stack(level=1).reset_index()
         df_b3_bruto.rename(columns={'level_1': 'Ticker'}, inplace=True)
+
+        # ================================
+        # VALIDAÇÃO DE QUALIDADE DE DADOS
+        # ================================
+
+        precos_negativos = df_b3_bruto[
+            (df_b3_bruto[['Open','High','Low','Close']] < 0).any(axis=1)
+        ]
+
+        if not precos_negativos.empty:
+            tickers_invalidos = precos_negativos['Ticker'].unique()
+            print(f"⚠️ {len(tickers_invalidos)} tickers com preços negativos detectados")
+
+            # salva log
+            precos_negativos.to_csv(
+                LOG_DIR / "log_precos_invalidos.csv",
+                index=False
+            )
+
+            # remove os tickers problemáticos
+            df_b3_bruto = df_b3_bruto[~df_b3_bruto['Ticker'].isin(tickers_invalidos)]
         
         print(f"   ✅ Preços extraídos! {len(df_b3_bruto)} linhas de OHLCV salvas.")
         return df_b3_bruto
