@@ -117,7 +117,7 @@ def process_master_lake():
     -----
     - O merge entre preços e dados da CVM é realizado usando `merge_asof`,
       garantindo que os dados fundamentalistas sejam associados ao pregão
-      mais próximo posterior.
+      mais próximo postearior.
     - Datas são normalizadas para evitar inconsistências causadas por
       fusos horários ou timestamps.
     - Indicadores técnicos e quantitativos são gerados através de funções
@@ -193,6 +193,40 @@ def process_master_lake():
     df_cvm = df_cvm.rename(columns=rename_cvm)
     df_cvm['date'] = pd.to_datetime(df_cvm['date']).dt.tz_localize(None).dt.normalize()
     df_cvm['ticker'] = df_cvm['ticker'].apply(format_ticker)
+
+    # ==========================================================
+    # DIAGNÓSTICO DE COBERTURA CVM vs PREÇOS
+    # ==========================================================
+    print("🔎 A verificar cobertura de tickers CVM vs Data Lake...")
+
+    tickers_precos = set(df_precos['ticker'].dropna().unique())
+    tickers_cvm = set(df_cvm['ticker'].dropna().unique())
+
+    tickers_comuns = tickers_precos & tickers_cvm
+    tickers_sem_cvm = tickers_precos - tickers_cvm
+    tickers_sem_preco = tickers_cvm - tickers_precos
+
+    print(f"Tickers em preços: {len(tickers_precos)}")
+    print(f"Tickers na CVM: {len(tickers_cvm)}")
+    print(f"Tickers em comum: {len(tickers_comuns)}")
+    print(f"Tickers sem dados CVM: {len(tickers_sem_cvm)}")
+
+    universe_dir = os.path.join(PROCESSED_DIR, "universe")
+    os.makedirs(universe_dir, exist_ok=True)
+    
+    # salvar diagnóstico
+    pd.DataFrame({"ticker": sorted(tickers_comuns)}).to_csv(
+        os.path.join(universe_dir, "tickers_comuns.csv"), index=False
+    )
+
+    pd.DataFrame({"ticker": sorted(tickers_sem_cvm)}).to_csv(
+        os.path.join(universe_dir, "tickers_sem_cvm.csv"), index=False
+    )
+
+    pd.DataFrame({"ticker": sorted(tickers_sem_preco)}).to_csv(
+        os.path.join(universe_dir, "tickers_cvm_sem_preco.csv"), index=False
+    )
+
     for col in ['cvm_ebit', 'cvm_lucro_liquido']:
         if col in df_cvm.columns:
             df_cvm[col] = to_numeric_safe(df_cvm[col])
@@ -202,6 +236,9 @@ def process_master_lake():
 
     df_master = df_master.sort_values('date')
     df_cvm = df_cvm.sort_values('date')
+
+    df_master = df_master[df_master['ticker'].isin(tickers_comuns)]
+    
     df_master = pd.merge_asof(df_master, df_cvm[['date', 'ticker', 'cvm_ebit', 'cvm_lucro_liquido', 'cvm_patrimonio_liquido']], 
                              on='date', by='ticker', direction='backward')
 
