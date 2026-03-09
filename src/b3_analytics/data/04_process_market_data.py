@@ -1,3 +1,12 @@
+"""
+Master Data Lake Builder - B3 Analytics
+
+Pipeline responsável por integrar dados de mercado, macroeconomia,
+eventos corporativos e dados fundamentalistas em um único dataset
+analítico para pesquisa quantitativa e machine learning.
+
+Project: B3 Analytics
+"""
 import pandas as pd
 import numpy as np
 import os
@@ -19,6 +28,23 @@ from b3_analytics.utils.finance_utils import (
 )
 
 def format_ticker(ticker):
+    """
+    Padroniza o formato de tickers para o padrão utilizado pelo Yahoo Finance.
+
+    Esta função garante que todos os tickers estejam em letras maiúsculas
+    e possuam o sufixo ".SA", utilizado para ativos listados na B3.
+
+    Parameters
+    ----------
+    ticker : str or NaN
+        Ticker original da empresa.
+
+    Returns
+    -------
+    str or NaN
+        Ticker padronizado no formato "XXXX.SA". Caso o valor seja NaN,
+        ele é retornado sem modificação.
+    """
     if pd.isna(ticker): return ticker
     t = str(ticker).strip().upper()
     if not t.endswith('.SA'):
@@ -26,11 +52,87 @@ def format_ticker(ticker):
     return t
 
 def to_numeric_safe(series):
+    """
+    Converte uma Series para valores numéricos de forma segura.
+
+    A função trata séries que podem conter números representados
+    como strings com vírgula decimal (formato comum em dados brasileiros).
+
+    Parameters
+    ----------
+    series : pandas.Series
+        Série contendo valores numéricos ou strings representando números.
+
+    Returns
+    -------
+    pandas.Series
+        Série convertida para tipo numérico (`float`), com valores inválidos
+        convertidos para `NaN`.
+    """
     if series.dtype == 'object':
         return pd.to_numeric(series.str.replace(',', '.'), errors='coerce')
     return pd.to_numeric(series, errors='coerce')
 
 def process_master_lake():
+    """
+    Constrói o Master Data Lake consolidado do mercado financeiro.
+
+    Esta função executa todo o pipeline de integração de dados financeiros,
+    combinando múltiplas fontes em um único dataset analítico otimizado para
+    modelagem quantitativa, análise financeira e machine learning.
+
+    O pipeline inclui:
+
+    1. Carregamento de dados históricos de preços (Yahoo Finance)
+    2. Integração de indicadores macroeconômicos (Banco Central)
+    3. Enriquecimento com informações corporativas das empresas
+    4. Integração de eventos corporativos (dividendos e splits)
+    5. Integração de dados fundamentalistas históricos da CVM
+    6. Geração de features quantitativas e indicadores técnicos
+    7. Cálculo de métricas de risco e performance
+    8. Exportação do dataset final em formatos otimizados
+
+    O resultado é um **Master Dataset financeiro** contendo indicadores
+    técnicos, fundamentalistas, macroeconômicos e estatísticas de risco
+    para cada ativo da B3 ao longo do tempo.
+
+    Outputs gerados
+    ---------------
+    01_market_data_processed.parquet
+        Dataset principal em formato Parquet otimizado para analytics.
+
+    01_market_data_processed.csv
+        Versão CSV para compatibilidade com outras ferramentas.
+
+    setores/*.parquet
+        Partições do dataset separadas por setor econômico.
+
+    Returns
+    -------
+    None
+        A função executa o pipeline de processamento e salva os
+        resultados diretamente no diretório de dados processados.
+
+    Notes
+    -----
+    - O merge entre preços e dados da CVM é realizado usando `merge_asof`,
+      garantindo que os dados fundamentalistas sejam associados ao pregão
+      mais próximo posterior.
+    - Datas são normalizadas para evitar inconsistências causadas por
+      fusos horários ou timestamps.
+    - Indicadores técnicos e quantitativos são gerados através de funções
+      utilitárias do módulo `finance_utils`.
+
+    Raises
+    ------
+    FileNotFoundError
+        Caso algum dos arquivos necessários no diretório RAW_DIR não exista.
+
+    Examples
+    --------
+    >>> process_master_lake()
+    🚀 INICIANDO INTEGRAÇÃO DO MASTER DATA LAKE...
+    """
     print("🚀 INICIANDO INTEGRAÇÃO DO MASTER DATA LAKE 3.3 (FINAL POLISH) 🚀")
     
     partition_dir = os.path.join(PROCESSED_DIR, 'setores')
@@ -61,7 +163,7 @@ def process_master_lake():
 
     # 3. Info da Empresa
     print("3. A integrar Informações Corporativas...")
-    df_info = pd.read_csv(os.path.join(RAW_DIR, '03_yfinance_info_raw.csv'), sep=';', on_bad_lines='skip', low_memory=False)
+    df_info = pd.read_csv(os.path.join(RAW_DIR, '04_yfinance_info_raw.csv'), sep=';', on_bad_lines='skip', low_memory=False)
     df_info.columns = [c.lower() for c in df_info.columns]
     df_info['ticker'] = df_info['ticker'].apply(format_ticker)
     for col in ['marketcap', 'bookvalue', 'returnonequity']:
@@ -75,7 +177,7 @@ def process_master_lake():
 
     # 4. Eventos e CVM
     print("4. A integrar Eventos e Histórico DRE CVM (Date Normalization)...")
-    df_eventos = pd.read_csv(os.path.join(RAW_DIR, '02_yfinance_eventos_raw.csv'), sep=';', low_memory=False)
+    df_eventos = pd.read_csv(os.path.join(RAW_DIR, '03_yfinance_eventos_raw.csv'), sep=';', low_memory=False)
     df_eventos.columns = [c.lower() for c in df_eventos.columns]
     # Normalizamos a data dos eventos para bater com o pregão (00:00:00)
     df_eventos['date'] = pd.to_datetime(df_eventos['date']).dt.tz_localize(None).dt.normalize()
@@ -85,9 +187,9 @@ def process_master_lake():
     df_eventos = df_eventos[['date', 'ticker', 'dividends', 'stock splits']]
     df_master = pd.merge(df_master, df_eventos, on=['date', 'ticker'], how='left').fillna({'dividends': 0, 'stock splits': 0})
 
-    df_cvm = pd.read_csv(os.path.join(RAW_DIR, '05_CVM_Historico_Focado.csv'), sep=';', decimal=',', low_memory=False)
+    df_cvm = pd.read_csv(os.path.join(RAW_DIR, '06_CVM_Historico_Focado.csv'), sep=';', decimal=',', low_memory=False)
     df_cvm.columns = [c.lower() for c in df_cvm.columns]
-    rename_cvm = {'dt_fim_exerc': 'date', 'ticker_alvo': 'ticker', '03_ebit_operacional_r$': 'cvm_ebit', '06_lucro_liquido_r$': 'cvm_lucro_liquido'}
+    rename_cvm = {'data_referencia': 'date', 'ticker_alvo': 'ticker', '03_ebit_operacional_r$': 'cvm_ebit', '06_lucro_liquido_r$': 'cvm_lucro_liquido'}
     df_cvm = df_cvm.rename(columns=rename_cvm)
     df_cvm['date'] = pd.to_datetime(df_cvm['date']).dt.tz_localize(None).dt.normalize()
     df_cvm['ticker'] = df_cvm['ticker'].apply(format_ticker)
