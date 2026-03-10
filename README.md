@@ -92,7 +92,7 @@ Execute the extraction and processing scripts via CMD in the following sequence:
 3. **Fundamentalist Extraction:** `poetry run python src/b3_analytics/data/03_cvm_elite_extraction.py`
 4. **Processing:** `poetry run python src/b3_analytics/data/04_process_market_data.py`
 
-After running the pipeline, you can open the notebooks in the `/notebooks` folder to generate charts and view the analysis.
+After running the pipeline, you can open the notebooks, `03_data_engineering_metrics.ipynb` and `b3_analytics_v3.ipynb`, in the `/notebooks` folder to generate charts and view the analysis.
 
 ## 8. Contribution
 
