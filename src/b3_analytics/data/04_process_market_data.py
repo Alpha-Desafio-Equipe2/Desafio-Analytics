@@ -150,17 +150,42 @@ def process_master_lake():
 
     # 2. Indicadores Econômicos (BCB Macro)
     print("2. A injetar Macroeconomia...")
-    df_macro = pd.read_csv(os.path.join(RAW_DIR, '01_bcb_indicadores_economicos.csv'), sep=';', decimal=',', low_memory=False)
+
+    df_macro = pd.read_csv(
+        os.path.join(RAW_DIR, '01_bcb_indicadores_economicos.csv'),
+        sep=';',
+        decimal=',',
+        low_memory=False
+    )
+
     df_macro['date'] = pd.to_datetime(df_macro['data']).dt.tz_localize(None).dt.normalize()
-    df_macro = df_macro.drop(columns=['data'])
+
     for col in ['selic', 'ipca', 'dolar']:
         if col in df_macro.columns:
             df_macro[col] = to_numeric_safe(df_macro[col])
 
-    df_master = pd.merge(df_precos, df_macro, on='date', how='left')
-    df_master = df_master.sort_values(['ticker', 'date'])
-    df_master[['selic', 'ipca', 'dolar']] = df_master.groupby('ticker')[['selic', 'ipca', 'dolar']].ffill()
+    df_macro = df_macro.drop(columns=['data'])
+    df_macro = df_macro.sort_values("date")
 
+    # 🔹 propagar indicadores primeiro
+    df_macro[['selic','ipca','dolar']] = df_macro[['selic','ipca','dolar']].ffill()
+
+    # 🔹 agora expandir para diário
+    df_macro = (
+        df_macro
+        .set_index("date")
+        .resample("D")
+        .ffill()
+        .reset_index()
+    )
+
+    df_master = pd.merge(df_precos, df_macro, on="date", how="left")
+    df_master = df_master.sort_values(["ticker","date"])
+
+    df_master[['selic','ipca','dolar']] = df_master[['selic','ipca','dolar']].ffill()
+
+    print(df_macro.head(20))
+    
     # 3. Info da Empresa
     print("3. A integrar Informações Corporativas...")
     df_info = pd.read_csv(os.path.join(RAW_DIR, '04_yfinance_info_raw.csv'), sep=';', on_bad_lines='skip', low_memory=False)
