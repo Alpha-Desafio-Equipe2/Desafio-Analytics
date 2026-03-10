@@ -108,6 +108,43 @@ If you find a bug, please open an **Issue**.
 
 ## 9. Contact / Authors
 
-| Name | Email | LinkedIn | GitHub |
-| --- | --- | --- | --- |
-| **Your Name** | your.email@example.com | [LinkedIn](https://linkedin.com/in/your-profile) | [@your-github](https://www.google.com/search?q=https://github.com/your-username) |
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/breno-wesley">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/breno-wesley?v=4" width=115><br>
+        <sub>Breno Wesley</sub><br>
+      </a>  
+    </td>
+    <td align="center">
+      <a href="https://github.com/RangelMRK">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/Danilo1525?v=4" width=115><br>
+        <sub>Danilo Martinez</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/DGILADS">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/DGILADS?v=4" width=115><br>
+        <sub>Diego Gil</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Elisabete-MO">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/Elisabete-MO?v=4" width=115><br>
+        <sub>Elisabete Oliveira</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/RangelMRK">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/LuizValdati?v=4" width=115><br>
+        <sub>Luiz Angelo</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/thallis075">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/thalus075?v=4" width=115><br>
+        <sub>Thallis Ferreira</sub><br>
+      </a>
+    </td>
+  </tr>
+</table>
