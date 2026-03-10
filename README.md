@@ -27,7 +27,7 @@ The project integrates data from three main pillars:
 
 The workflow is designed around a **Data Lake** concept to minimize API calls and ensure performance:
 
-1. **Ingestion:** Data is fetched via APIs and persisted as `.parquet` files (**Raw**) to allow for offline processing.
+1. **Ingestion:** Data is fetched via APIs and persisted as `.parquet` and `.csv` files (**Raw**) to allow for offline processing.
 2. **Transformation:** Data is cleaned and refined using modular pipelines, then saved into a processed layer (**Processed**).
 3. **Documentation:** Detailed process workflows can be found in the `/docs` directory (e.g., `macro_data_pipeline(BC).md`, `master_data_lake_pipeline.md`).
 
