@@ -27,7 +27,7 @@ The project integrates data from three main pillars:
 
 The workflow is designed around a **Data Lake** concept to minimize API calls and ensure performance:
 
-1. **Ingestion:** Data is fetched via APIs and persisted as `.parquet` files (**Raw**) to allow for offline processing.
+1. **Ingestion:** Data is fetched via APIs and persisted as `.parquet` and `.csv` files (**Raw**) to allow for offline processing.
 2. **Transformation:** Data is cleaned and refined using modular pipelines, then saved into a processed layer (**Processed**).
 3. **Documentation:** Detailed process workflows can be found in the `/docs` directory (e.g., `macro_data_pipeline(BC).md`, `master_data_lake_pipeline.md`).
 
@@ -92,7 +92,7 @@ Execute the extraction and processing scripts via CMD in the following sequence:
 3. **Fundamentalist Extraction:** `poetry run python src/b3_analytics/data/03_cvm_elite_extraction.py`
 4. **Processing:** `poetry run python src/b3_analytics/data/04_process_market_data.py`
 
-After running the pipeline, you can open the notebooks in the `/notebooks` folder to generate charts and view the analysis.
+After running the pipeline, you can open the notebooks, `03_data_engineering_metrics.ipynb` and `b3_analytics_v3.ipynb`, in the `/notebooks` folder to generate charts and view the analysis.
 
 ## 8. Contribution
 
@@ -108,6 +108,43 @@ If you find a bug, please open an **Issue**.
 
 ## 9. Contact / Authors
 
-| Name | Email | LinkedIn | GitHub |
-| --- | --- | --- | --- |
-| **Your Name** | your.email@example.com | [LinkedIn](https://linkedin.com/in/your-profile) | [@your-github](https://www.google.com/search?q=https://github.com/your-username) |
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/breno-wesley">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/breno-wesley?v=4" width=115><br>
+        <sub>Breno Wesley</sub><br>
+      </a>  
+    </td>
+    <td align="center">
+      <a href="https://github.com/RangelMRK">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/Danilo1525?v=4" width=115><br>
+        <sub>Danilo Martinez</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/DGILADS">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/DGILADS?v=4" width=115><br>
+        <sub>Diego Gil</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Elisabete-MO">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/Elisabete-MO?v=4" width=115><br>
+        <sub>Elisabete Oliveira</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/RangelMRK">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/LuizValdati?v=4" width=115><br>
+        <sub>Luiz Angelo</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/thallis075">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/thalus075?v=4" width=115><br>
+        <sub>Thallis Ferreira</sub><br>
+      </a>
+    </td>
+  </tr>
+</table>
