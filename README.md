@@ -1,62 +1,150 @@
-# 🚀 Comando B3 - Arquitetura Institucional On-Demand
+# From Raw Data to Investment Insights
 
-Bem-vindo ao Comando B3, um ecossistema completo de análise de dados do mercado financeiro brasileiro, desenhado para lidar com todo o catálogo da B3 de forma escalável, ultra-rápida (powered by Polars) e livre de sobrecarga de memória (Lazy Loading).
+This project explores the relationship between macroeconomic factors and Brazilian Stock Exchange (B3) assets, specifically focusing on how external economic variables influence tickers in the financial sector.
 
----
+## 1. Description
 
-## 🏗️ 1. Arquitetura do Sistema e Funcionamento
+A technical deep-dive into the Brazilian stock market (B3) to analyze the impact of macroeconomic shifts. By leveraging automated data pipelines, this project identifies correlations between national economic indicators and stock performance, turning raw financial data into actionable investment insights.
 
-O projeto foi refatorado para uma arquitetura "On-Demand" (Sob Demanda), substituindo antigos processos em lote que gastavam gigabytes de RAM. A arquitetura divide-se em 3 pilares:
+## 2. Project Objectives
 
-### Pilar 1: Fundação Macroeconómica e Catálogo (`coleta_macro.py`)
+* **Quantify Interference:** Demonstrate how macroeconomic factors directly affect papers within the B3 financial sector.
+* **Pattern Recognition:** Explore and identify recurring patterns in the relationship between the economy and market prices.
+* **Data Automation:** Build a robust pipeline for data extraction, transformation, and storage.
 
-Este script é a base imutável que deverá correr (por exemplo, diariamente numa cronjob). Ele não baixa cotações pesadas.
+## 3. Data Sources
 
-- **Dados do Banco Central:** Utiliza a biblioteca `python-bcb` (Sistema Gerenciador de Séries Temporais do BCB) para capturar a essência da economia: **Taxa Selic (11)**, **Dólar PTAX (1)** e **IPCA (433)**. O custo de oportunidade (Selic) é matematicamente integrado a todos os retornos.
-- **Fundamentos da Empresa:** Utiliza a API `fundamentus` estruturada sobre os relatórios da CVM (Comissão de Valores Mobiliários) para puxar um catálogo de todas as +900 ações, e armazena os Rácios Fundamentais como **P/L** (Preço/Lucro), **ROE** (Retorno sobre Património) e **Dívida Bruta/Património**.
-- **Armazenamento:** Salva estes dados como `.parquet` leves na pasta `data/raw/`.
+The project integrates data from three main pillars:
 
-### Pilar 2: Motor de Engenharia de Dados On-Demand (`processamento_dados.py`)
+* **`yfinance`**: Real-time and historical market data for stock tickers.
+* **`bcb`**: A Python interface for the **Central Bank of Brazil (BCB)** Open Data API, used to collect macroeconomic indicators (e.g., SELIC, IPCA).
+* **`fundamentus`**: Comprehensive fundamentalist indicators for all companies listed on the B3.
 
-Aqui é onde o verdadeiro poder matemático do sistema reside. Em vez de ler centenas de CSVs usando Pandas (que colapsaria o servidor), utiliza `polars` em Rust.
+> [!NOTE]
+> For more granular details on the variables used, please refer to the `data/data_dictionary.md` file.
 
-- **Indicadores Técnicos:** Calcula Médias Móveis (MM21, MM200), Bandas de Bollinger, MACD, Volatilidade em janelas rolantes e Índice de Força Relativa (RSI).
-- **Data Joining:** Funde num único frame tridimensional o Preço com o catálogo da Empresa e com os dados Macroeconómicos exatos daquele dia (`forward_fill` para ajustar fins-de-semana).
-- **Fração do Tempo:** O processador materializa (`collect()`) tudo num ficheiro particionado final (`data/processed/*_processed.parquet`) para evitar recálculos no futuro.
+## 4. Methodology and Technologies
 
-### Pilar 3: Orquestrador Visual e Machine Learning (`dashboard_squad3.py`)
+The workflow is designed around a **Data Lake** concept to minimize API calls and ensure performance:
 
-A ponta do Iceberg, onde o utilizador interage num ambiente Streamlit.
+1. **Ingestion:** Data is fetched via APIs and persisted as `.parquet` and `.csv` files (**Raw**) to allow for offline processing.
+2. **Transformation:** Data is cleaned and refined using modular pipelines, then saved into a processed layer (**Processed**).
+3. **Documentation:** Detailed process workflows can be found in the `/docs` directory (e.g., `macro_data_pipeline(BC).md`, `master_data_lake_pipeline.md`).
 
-- **Lazy Fetching (yfinance):** Se procurares "WEGE3" na barra de pesquisa (oriunda do catálogo Fundamentus), e o sistema não tiver ainda os dados no servidor, o Dashboard avisa o script On-Demand. A aplicação usa `yfinance` e extrai retroativamente 30 anos de bolsa apenas dessa ação, injetando-a num instante (2 a 3 segundos no máximo) no nosso Motor Polars e construindo o ficheiro local na mosca.
-- **Polars Lazy API (`scan_parquet`):** Se já existem dados, o Polars analisa o ticket físico sem encher a RAM, lê **só as datas** que pediste no slider do dashboard e constrói imediatamente os gráficos complexos (Drawdown, Desempenho Face à Selic).
+**Technology Stack:**
 
----
+* **Language:** Python 3.11.8
+* **Package Manager:** Poetry
+* **Storage Format:** Apache Parquet
+* **Analysis:** Pandas, Jupyter Notebooks
+* **Dashboard:** Streamlit (via `b3_analytics`)
 
-## 🤖 2. Machine Learning Híbrida: XGBoost e Robo-Advisor
+## 5. Repository Structure
 
-O nosso motor de IA utiliza o famoso **XGBoost (Extreme Gradient Boosting)** aliado à **Computação Estocástica (Numpy)**. O diferencial enorme do nosso projeto não é apenas "adivinhar o preço usando o preço de ontem", mas sim cruzar contextos: **O Padrão Técnico + O Padrão Institucional Multivariado**.
+```text
+├── data/               # Raw and processed datasets
+│    ├── processed/     # Cleaned data ready for analysis
+│    └── raw/           # Original data from APIs
+├── docs/               # Technical documentation and dictionaries
+├── notebooks/          # Jupyter notebooks for EDA and modeling
+├── src/                # Modular Python source code
+│      └── b3_analytics/ # Streamlit dashboard and analysis logic
+├── requirements.txt    # Dependency list
+├── pyproject.toml      # Poetry configuration
+├── poetry.lock         # Poetry lockfile
+├── .gitignore
+└── README.md
 
-### Features (Variáveis) que a Máquina Aprende:
+```
 
-A máquina é literalmente injetada com sabedoria institucional:
+## 6. Installation and Configuration
 
-- **Indicadores de Pressão (CVM):** A ação está muito esticada face ao lucro atual (`P/L`) ou face ao capital investido (`ROE`)?
-- **Indicadores Momentâneos (Técnicos):** Como está a inclinação do `MACD`, a dinâmica da Banda `Bollinger` Inferior e a volatilidade matemática dos últimos 21 dias?
-- **Custo de Capital (Macro BCB):** O Governo mudou a `Selic` hoje? A evolução do Câmbio `Dólar` está a beneficiar o exportador?
+**Requirements:**
 
-### O que os 2 Modelos Fazem Realmente?
+* Python 3.11.8
+* [Poetry](https://python-poetry.org/)
 
-Isto não é apenas análise de risco académica; a aplicação foca em dois domínios reais de produção de capital:
+**Environment Setup:**
 
-1. **A Inteligência Direcional (XGBoost):** Esqueça as linhas lisas que erram no amanhã. O **XGBoost** executa "Super-Regressão" em Janelas Contínuas e produz uma "Probabilidade Percentual de Ganho", convertendo as matemáticas difíceis num Parecer Cognitivo de Leitura fácil na aba de Inteligência Artificial usando um _Candlestick_ visual e simulador de Monte Carlo.
-2. **O Gestor Criptográfico (Markowitz Actionable):** Em vez de cuspir "Alocação 30% / 70%", o Otimizador permite que o investidor escolha ser "Agressivo" ou "Defensivo". Lendo os preços exatos atuais do banco de dados `Polars`, ele calcula a **Boleta de Compra Comercial** (ex: Compre 100 cotas, custará R$ 2.400 e sobrarão R$ 15). De forma audaz, atrela ainda a Máquina do Tempo (_Backtester_), simulando o enriquecimento base-100 desta carteira no histórico provando o Alpha.
+1. Clone the repository and navigate to the folder.
+2. Initialize the environment:
+```bash
+poetry env use python
+poetry install
 
-## Como Executar Todo o Fluxo num Novo Servidor
+```
 
-1.  **Dependências:** Instala as bibliotecas necessárias executando `pip install -r requirements.txt` no Terminal.
-2.  **Fundação:** Corre no Terminal `python coleta_macro.py`. Isto baixará todos os nomes das empresas à face da terra do Brasil e a Taxa Básica de Juros desde 1995. Demorará cerca de 2 segundos.
-3.  **O Show:** Corre no Terminal `python -m streamlit run dashboard_squad3.py`.
-4.  **On-Demand:** Abre sempre o endereço no browser (ex: `http://localhost:8501`), digita qualquer ativo que desponte no teu radar, como "VALE3" ou "BBDC4", e deixa o motor ir ao cofre financeiro do Yahoo, processar com ferramentas do Polars as colunas inteiras da nossa arquitetura baseada no que tu precisas no exato segundo.
 
-Documento concebido meticulosamente por _Antigravity AI Agent_.
+3. Register the kernel for Jupyter:
+```bash
+poetry run python -m ipykernel install --user --name b3-project --display-name "Python (B3-Poetry)"
+
+```
+
+
+
+## 7. How to Run
+
+Execute the extraction and processing scripts via CMD in the following sequence:
+
+1. **Macro Extraction:** `poetry run python src/b3_analytics/data/01_bcb_macro_extraction.py`
+2. **Market Extraction:** `poetry run python src/b3_analytics/data/02_yfinance_data_extraction.py`
+3. **Fundamentalist Extraction:** `poetry run python src/b3_analytics/data/03_cvm_elite_extraction.py`
+4. **Processing:** `poetry run python src/b3_analytics/data/04_process_market_data.py`
+
+After running the pipeline, you can open the notebooks, `03_data_engineering_metrics.ipynb` and `b3_analytics_v3.ipynb`, in the `/notebooks` folder to generate charts and view the analysis.
+
+## 8. Contribution
+
+Contributions are welcome! To contribute:
+
+1. **Fork** the repository.
+2. Create a new **Branch** (`git checkout -b feature/new-analysis`).
+3. Commit your changes (`git commit -m 'Add new feature'`).
+4. Push to the branch (`git push origin feature/new-analysis`).
+5. Open a **Pull Request**.
+
+If you find a bug, please open an **Issue**.
+
+## 9. Contact / Authors
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/breno-wesley">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/breno-wesley?v=4" width=115><br>
+        <sub>Breno Wesley</sub><br>
+      </a>  
+    </td>
+    <td align="center">
+      <a href="https://github.com/RangelMRK">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/Danilo1525?v=4" width=115><br>
+        <sub>Danilo Martinez</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/DGILADS">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/DGILADS?v=4" width=115><br>
+        <sub>Diego Gil</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Elisabete-MO">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/Elisabete-MO?v=4" width=115><br>
+        <sub>Elisabete Oliveira</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/RangelMRK">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/LuizValdati?v=4" width=115><br>
+        <sub>Luiz Angelo</sub><br>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/thallis075">
+        <img loading="lazy" src="https://avatars.githubusercontent.com/thalus075?v=4" width=115><br>
+        <sub>Thallis Ferreira</sub><br>
+      </a>
+    </td>
+  </tr>
+</table>
